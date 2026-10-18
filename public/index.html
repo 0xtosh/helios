@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17120f">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lights & Blinds">
+<title>Lights &amp; Blinds Control</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="config.js"></script>
+<script>
+/* Theme before first paint: with a location set in config.js, light between sunrise and sunset and
+   dark otherwise; without one, follow the system preference. The toggle cycles auto -> light -> dark. */
+const CFG = window.HELIOS || {};
+const HOME = { lat: CFG.lat, lon: CFG.lon };
+function sunTimes(now) {
+  const rad = Math.PI / 180, JD = now.getTime() / 86400000 + 2440587.5;
+  const n = Math.ceil(JD - 2451545.0 + 0.0008), Js = n - HOME.lon / 360;
+  const M = (357.5291 + 0.98560028 * Js) % 360;
+  const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const L = (M + C + 180 + 102.9372) % 360;
+  const Jt = 2451545.0 + Js + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
+  const sinD = Math.sin(L * rad) * Math.sin(23.4397 * rad);
+  const cosW = (Math.sin(-0.833 * rad) - Math.sin(HOME.lat * rad) * sinD) / (Math.cos(HOME.lat * rad) * Math.cos(Math.asin(sinD)));
+  if (cosW > 1) return { polar: 'night' };
+  if (cosW < -1) return { polar: 'day' };
+  const w = Math.acos(cosW) / rad / 360, toDate = j => new Date((j - 2440587.5) * 86400000);
+  return { rise: toDate(Jt - w), set: toDate(Jt + w) };
+}
+function autoTheme(now = new Date()) {
+  if (typeof HOME.lat !== 'number' || typeof HOME.lon !== 'number') return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const s = sunTimes(now);
+  if (s.polar) return s.polar === 'day' ? 'light' : 'dark';
+  const mins = d => d.getHours() * 60 + d.getMinutes(), t = mins(now);
+  return t >= mins(s.rise) && t < mins(s.set) ? 'light' : 'dark';
+}
+function themeMode() { try { return localStorage.getItem('theme-mode') || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme() {
+  const mode = themeMode(), theme = mode === 'auto' ? autoTheme() : mode;
+  document.documentElement.dataset.theme = theme; document.documentElement.dataset.mode = mode;
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = theme === 'dark' ? '#17120f' : '#f6f0e7';
+}
+applyTheme();
+</script>
+<link rel="preload" href="fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="bg" id="bg"></div><div class="scrim"></div>
+
+<div class="app">
+  <header class="top">
+    <a class="brand" href="./" aria-label="Lights and blinds control">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></span>
+      <span class="word"><b>Lights &amp; Blinds</b><i><img class="ikea" src="ikea.svg" alt="IKEA" width="30" height="12"> Home control</i></span>
+    </a>
+    <div class="when"><div class="clock" id="clock">--:--</div><div class="greet" id="greet"></div></div>
+    <div class="hdr-right">
+      <div class="sun" id="sun" hidden><span class="sun-ico" id="sunIco"></span><span id="sunTxt"></span></div>
+      <button class="chip status" id="status" type="button" aria-label="System status"><span class="led" id="led"></span><span id="statusTxt">Connecting…</span></button>
+      <button class="chip icon" id="themeBtn" type="button" aria-label="Switch theme"><span id="themeIco"></span><span id="modeLabel"></span></button>
+    </div>
+  </header>
+
+  <section class="qa" id="qa" aria-label="Quick controls"></section>
+  <nav class="nav" id="nav" aria-label="Rooms"></nav>
+  <h2 class="sec">Scenes</h2>
+  <section class="scenes" id="scenes" aria-label="Scenes"></section>
+  <main class="rooms" id="rooms"><div class="boot">Loading your home…</div></main>
+  <section class="card far" id="far" hidden></section>
+  <details class="card remotes" id="remotesBox"><summary><span>Remotes &amp; batteries</span><small id="remotesSum"></small></summary><div class="remote-grid" id="remotes"></div></details>
+
+  <footer class="foot">
+    <div class="ticker" id="ticker" aria-live="polite"><span class="tag">Activity</span><span id="tickerTxt">Nothing yet today.</span></div>
+    <div class="credit" id="credit"></div>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card card">
+    <div class="sheet-head"><h2>System</h2><button class="chip icon" id="sheetClose" type="button" aria-label="Close">✕</button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>

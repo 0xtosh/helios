@@ -1,0 +1,9 @@
+{
+  "name": "helios-express",
+  "version": "1.0.0",
+  "description": "Helios Express — realtime IKEA DIRIGERA lights & blinds control. Zero dependencies.",
+  "main": "server.js",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server.js", "demo": "node -e \"process.env.DEMO='1';require('./server.js')\"" }
+}

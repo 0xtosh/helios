@@ -1,0 +1,29 @@
+[Unit]
+Description=Helios - IKEA DIRIGERA lights and blinds control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=helios
+Group=helios
+WorkingDirectory=/opt/helios
+ExecStart=/usr/bin/node --max-old-space-size=64 /opt/helios/server.js
+Environment=NODE_ENV=production
+Environment=PORT=3200
+Environment=BIND=0.0.0.0
+# Environment=HUB_IP=192.0.2.10
+Restart=always
+RestartSec=3
+MemoryHigh=90M
+MemoryMax=140M
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=helios
+
+[Install]
+WantedBy=multi-user.target
